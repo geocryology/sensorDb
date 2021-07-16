@@ -145,13 +145,13 @@ var HtmlFixer = $n2.Class({
 				_this.dbService.getListOfLogEntries({
 					onSuccess: function(logEntries){
 						var $div = $('#'+elemId).empty();
-						
+
 						logEntries.sort(function(o1,o2){
-							if(o1.timestamp < o2.timestamp) return -1;
-							if(o1.timestamp > o2.timestamp) return 1;
+							if(o1.timestamp > o2.timestamp) return -1;
+							if(o1.timestamp < o2.timestamp) return 1;
 							return 0;
 						});
-						
+
 						for(var i=0,e=logEntries.length; i<e; ++i){
 							var logEntry = logEntries[i];
 							var ts = logEntry.timestamp;

@@ -151,3 +151,31 @@ select name,responsible_party,ST_AsText(coordinates),elevation from locations;
 > pg_dump observations > 201XMMDD_observations_data.txt
 
 > psql observations < 201XMMDD_observations_data.txt
+
+
+# Docker
+## Create a new configuration
+Use the following command to create a new sensorDb configuration:
+
+```bash
+docker run -it --user $(id -u) -v ${HOME}:/opt/sensorDb/config sensordb create
+```
+
+Follow the on-screen prompts. The first question asks where to create the configuration; this will become the name of a new subdirectory within your `$HOME` directory. The full path to that subdirectory will be used when running an existing configuration.
+
+```
+Enter location where server should be created: myconfig
+Enter the port for the server: 5005
+Enter the database connection string: 123.45.678.90:5432
+Enter the database user: sensordb
+Enter the database password: password
+```
+
+The flag `--user $(id -u)` is used to ensure that any files created in this step are editable (not owned by `root`).
+
+## Running an existing configuration
+```bash
+docker run -v ${HOME}/myconfig:/opt/sensorDb/config sensordb 
+```
+
+Make sure the location of the server (in this case ${HOME}/myconfig) really exists.

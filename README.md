@@ -59,7 +59,7 @@ export PATH=$PATH:$MAINDIR"sensorDb/sensorDb-command/target/sensorDb-command-"$S
 To configure a new sensorDb server, run `sensorDb create` (ensure the sensorDb-command bin directory is on your `PATH`). You will be prompted for the following information:
 
 * port: *any port is ok.*
-* connection string: *in the format `//HOST/DATABASE` (e.g. `//206.12.92.139:5432/observations`).*
+* connection string: *in the format `//HOST:PORT/DATABASE` (e.g. `//206.12.92.139:5432/observations`).*
 * user: sensordb *your database must have a user role by this name with write-access and an entry in pg_hba.conf* 
 * password: *database password for chosen `user`*
 

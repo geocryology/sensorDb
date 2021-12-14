@@ -1,4 +1,4 @@
-FROM maven:3.6-openjdk-8
+FROM maven:3.6-openjdk-8 as build
 
 RUN apt-get install -y git
 
@@ -19,22 +19,18 @@ RUN cd /opt/sensorDb \
     && mvn clean install
 
 # Second stage
-FROM openjdk:8-jre
+FROM openjdk:8-jre as deploy
 
 # TODO: extract this automatically
 ENV SDB_VER="0.0.2-SNAPSHOT"  
 
-COPY --from=0 /opt/sensorDb /opt/sensorDb
-# TODO: be more selective about copying maven dependencies
-COPY --from=0 /root/.m2 /root/.m2
+COPY --from=build /opt/sensorDb /opt/sensorDb
 
 # add path variables
 RUN cd "/opt/sensorDb/sensorDb-command/target/" \
     && tar zxvf "sensorDb-command-${SDB_VER}-sensorDb.tar.gz" \
     && chmod -R o+r,o+x "sensorDb-command-${SDB_VER}-sensorDb.tar.gz"
 
-
-# ENV PATH="${PATH}:/usr/local/nunaliit_VERSION_DATE_BUILD/bin"
 ENV PATH="${PATH}:/opt/sensorDb/sensorDb-command/target/sensorDb-command-${SDB_VER}/bin"
 RUN apt-get install -y bash
 

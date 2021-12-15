@@ -35,6 +35,7 @@ ENV PATH="${PATH}:/opt/sensorDb/sensorDb-command/target/sensorDb-command-${SDB_V
 RUN apt-get install -y bash
 
 # Create default configuration
+RUN cd / && ln -s /opt/sensorDb/config config
 WORKDIR "/opt/sensorDb/config"
 COPY example-server/ .
 

@@ -21,7 +21,7 @@ RUN cd /opt/sensorDb \
 # Second stage
 FROM openjdk:8-jre as deploy
 
-# TODO: extract this automatically
+# TODO: extract this automatically with "$(grep -m 1 -o '<version>.*</version>' pom.xml | sed 's-<\/\?version>--g')"
 ENV SDB_VER="0.0.2-SNAPSHOT"  
 
 COPY --from=build /opt/sensorDb /opt/sensorDb

@@ -973,7 +973,7 @@ public class DbApiJdbc implements DbAPI {
 
 		try {
 			PreparedStatement pstmt = dbConn.getConnection().prepareStatement(
-				"SELECT id,import_time,filename,import_parameters FROM imports"
+				"SELECT id,import_time,filename,import_parameters FROM imports ORDER BY import_time DESC LIMIT 10"
 			);
 			
 			ResultSet resultSet = pstmt.executeQuery();

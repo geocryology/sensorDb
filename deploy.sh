@@ -11,6 +11,7 @@ fi
 
 mvn clean compile
 mvn clean install
+ln -sf "/opt/sensorDb/sensorDb-command/target/sensorDb-command-"$SDB_VER /opt/sensorDb/latest
 cd sensorDb-command/target/
 tar zxvf "sensorDb-command-"$SDB_VER"-sensorDb.tar.gz"
 chmod -R o+r,o+x "sensorDb-command-"$SDB_VER"-sensorDb.tar.gz"

@@ -185,7 +185,8 @@ ALTER TABLE public.observations_dois OWNER TO observations_admin;
 
 CREATE TABLE public.sets(
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
-	set character varying NOT NULL,
+	label character varying NOT NULL,
+	doi character varying,
 	notes text,
 	CONSTRAINT sets_pk PRIMARY KEY (id)
 

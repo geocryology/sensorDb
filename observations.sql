@@ -165,24 +165,6 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.observations TO observations_w
 
 --- end of observations table
 
-CREATE TABLE public.dois(
-	id uuid NOT NULL DEFAULT uuid_generate_v4(),
-	doi character varying NOT NULL,
-	notes text,
-	CONSTRAINT dois_pk PRIMARY KEY (id)
-
-);
-ALTER TABLE public.dois OWNER TO observations_admin;
-
-CREATE TABLE public.observations_dois(
-	id uuid NOT NULL DEFAULT uuid_generate_v4(),
-	observation_id uuid NOT NULL,
-	doi_id uuid NOT NULL
-);
-ALTER TABLE public.observations_dois OWNER TO observations_admin;
-
---- end of dois tables
-
 CREATE TABLE public.sets(
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
 	label character varying NOT NULL,
@@ -228,34 +210,34 @@ ALTER TABLE public.observations ADD CONSTRAINT observations_sensor_fk FOREIGN KE
 REFERENCES public.sensors (id) MATCH FULL
 ON DELETE NO ACTION ON UPDATE NO ACTION;
 
-ALTER TABLE public.observations_dois ADD CONSTRAINT observation_doi_observation_fk FOREIGN KEY (observation_id)
+ALTER TABLE public.observations_sets ADD CONSTRAINT observation_set_observation_fk FOREIGN KEY (observation_id)
 REFERENCES public.observations (id) MATCH FULL
 ON DELETE NO ACTION ON UPDATE NO ACTION;
 
-ALTER TABLE public.observations_dois ADD CONSTRAINT observation_doi_doi_fk FOREIGN KEY (doi_id)
-REFERENCES public.dois (id) MATCH FULL
+ALTER TABLE public.observations_sets ADD CONSTRAINT observation_set_set_fk FOREIGN KEY (set_id)
+REFERENCES public.sets (id) MATCH FULL
 ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 
 GRANT SELECT on device_sensor_profiles to observations_read;
 GRANT SELECT on devices to observations_read;
 GRANT SELECT on devices_locations to observations_read;
-GRANT SELECT on dois to observations_read;
+GRANT SELECT on sets to observations_read;
 GRANT SELECT on locations to observations_read;
 GRANT SELECT on logs to observations_read;
 GRANT SELECT on imports to observations_read;
 GRANT SELECT on observations to observations_read;
-GRANT SELECT on observations_dois to observations_read;
+GRANT SELECT on observations_sets to observations_read;
 GRANT SELECT on sensors to observations_read;
 
 GRANT SELECT, INSERT, UPDATE, DELETE on device_sensor_profiles to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on devices to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on devices_locations to observations_write;
-GRANT SELECT, INSERT, UPDATE, DELETE on dois to observations_write;
+GRANT SELECT, INSERT, UPDATE, DELETE on sets to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on locations to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on logs to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on imports to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on observations to observations_write;
-GRANT SELECT, INSERT, UPDATE, DELETE on observations_dois to observations_write;
+GRANT SELECT, INSERT, UPDATE, DELETE on observations_sets to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on sensors to observations_write;
 

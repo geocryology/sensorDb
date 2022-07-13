@@ -1,12 +1,14 @@
 device_type,manufacturer,manufacturer_device_name,sensor_label,sensor_type_of_measurement,sensor_unit_of_measurement,sensor_accuracy,sensor_precision,sensor_height_in_metres
 temperature logger,GeoPrecision,LOG-PT1000 (M-Log5W-US-SIMPLE),#1:oC,numeric,C,0.1,0.01,-0.1
 temperature logger,GeoPrecision,LOG-PT1000 (M-Log5W-US-SIMPLE),#HK-Bat:V,numeric,V,,,
+temperature logger,GeoPrecision,LOG-PT1000 (M-Log5W-US-SIMPLE),#HK-Temp:oC,numeric,C,,,
 temperature logger,GeoPrecision,LOG-PT1000 (M-Log5W-US-SIMPLE),notes,text,,,,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 5m 4xTemp),#1:oC,numeric,C,0.1,0.01,-0.5
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 5m 4xTemp),#2:oC,numeric,C,0.1,0.01,-1
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 5m 4xTemp),#3:oC,numeric,C,0.1,0.01,-2
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 5m 4xTemp),#4:oC,numeric,C,0.1,0.01,-5
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 5m 4xTemp),#HK-Bat:V,numeric,V,,,
+temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 5m 4xTemp),#HK-Temp:oC,numeric,C,,,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 5m 4xTemp),notes,text,,,,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 10m 5xTemp),#1:oC,numeric,C,0.1,0.01,-0.5
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 10m 5xTemp),#2:oC,numeric,C,0.1,0.01,-1
@@ -14,6 +16,7 @@ temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 10m 5xTemp),#3:oC,numeric,C,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 10m 5xTemp),#4:oC,numeric,C,0.1,0.01,-5
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 10m 5xTemp),#5:oC,numeric,C,0.1,0.01,-10
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 10m 5xTemp),#HK-Bat:V,numeric,V,,,
+temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 10m 5xTemp),#HK-Temp:oC,numeric,C,,,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 10m 5xTemp),notes,text,,,,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 15m 6xTemp),#1:oC,numeric,C,0.1,0.01,-0.5
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 15m 6xTemp),#2:oC,numeric,C,0.1,0.01,-1
@@ -22,6 +25,7 @@ temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 15m 6xTemp),#4:oC,numeric,C,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 15m 6xTemp),#5:oC,numeric,C,0.1,0.01,-10
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 15m 6xTemp),#6:oC,numeric,C,0.1,0.01,-15
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 15m 6xTemp),#HK-Bat:V,numeric,V,,,
+temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 15m 6xTemp),#HK-Temp:oC,numeric,C,,,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 15m 6xTemp),notes,text,,,,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 20m 7xTemp),#1:oC,numeric,C,0.1,0.01,-0.5
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 20m 7xTemp),#2:oC,numeric,C,0.1,0.01,-1
@@ -31,13 +35,16 @@ temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 20m 7xTemp),#5:oC,numeric,C,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 20m 7xTemp),#6:oC,numeric,C,0.1,0.01,-15
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 20m 7xTemp),#7:oC,numeric,C,0.1,0.01,-20
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 20m 7xTemp),#HK-Bat:V,numeric,V,,,
+temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 20m 7xTemp),#HK-Temp:oC,numeric,C,,,
 temperature logger,GeoPrecision,LOG-HC2 (M-Log5W-US 20m 7xTemp),notes,text,,,,
 temperature logger,GeoPrecision,M-Log5W-US-ROCK,#1:oC,numeric,C,0.1,0.01,-0.1
 temperature logger,GeoPrecision,M-Log5W-US-ROCK,#HK-Bat:V,numeric,V,,,
+temperature logger,GeoPrecision,M-Log5W-US-ROCK,#HK-Temp:oC,numeric,C,,,
 temperature logger,GeoPrecision,M-Log5W-US-ROCK,notes,text,,,,
 humidity logger,GeoPrecision,M-Log5W-US-HUMIDITY,#1:oC,numeric,C,0.3,0.05,2
 humidity logger,GeoPrecision,M-Log5W-US-HUMIDITY,#2:%RH,numeric,%RH,1.8,0.1,2
 humidity logger,GeoPrecision,M-Log5W-US-HUMIDITY,#HK-Bat:V,numeric,V,,,
+humidity logger,GeoPrecision,M-Log5W-US-HUMIDITY,#HK-Temp:oC,numeric,C,,,
 humidity logger,GeoPrecision,M-Log5W-US-HUMIDITY,notes,text,,,,
 manual_observation,manual_observation,manual_observation,location_responsible_party,text,,,,
 manual_observation,manual_observation,manual_observation,location_to_do,text,,,,

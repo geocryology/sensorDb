@@ -5,6 +5,7 @@ import java.util.Stack;
 
 public class CommandHelp implements Command {
 
+
 	static public void reportGlobalSettingServerDir(PrintStream ps){
 		ps.println("     --server-dir <dir>  Indicates the location of the server directory.");
 		ps.println("                         If this option is not specified, the current");
@@ -36,7 +37,12 @@ public class CommandHelp implements Command {
 
 	@Override
 	public void reportHelp(PrintStream ps) {
+		final Properties properties = new Properties();
+		properties.load(this.getClassLoader().getResourceAsStream("version.properties"));
+		final String version = properties.getProperty("version");
+
 		ps.println("SensorDb - Help Command");
+		ps.println("Version: " + version);
 		ps.println();
 		ps.println("Command Syntax:");
 		ps.println("  sensorDb help [<command-name>]");

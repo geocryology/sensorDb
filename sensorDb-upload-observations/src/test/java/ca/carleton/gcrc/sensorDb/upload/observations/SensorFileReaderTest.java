@@ -265,6 +265,26 @@ public class SensorFileReaderTest extends TestCase {
 		}
 	}
 
+	public void testCommasInDeltaTime() throws Exception {
+		String input = "Logger: #E509EC 'PT1000TEMP' - USP_EXP2 - (CGI) Expander for GP5W - (V2.7, Jan 12 2016)\n"
+				+"Delta Time: 1322 secs,,\n"
+				+"No,Time,#1:oC,#HK-Bat:V\n"
+				+"1,28.01.2016 15:40:00,1\n"
+				+"2,28.01.2016 15:50:00,1.1\n"
+				;
+
+		StringReader sr = new StringReader(input);
+		SensorFileReader sensorReader = new SensorFileReader(sr);
+
+		Integer deltaTime = sensorReader.getDeltaTimeInSecs();
+		
+		if( null == deltaTime ){
+			fail("Delta Time line not detected");
+		} else if( 1322 != deltaTime.intValue() ) {
+			fail("Unexpected delta time returned: "+deltaTime.intValue());
+		}
+	}
+
 	public void testNegativeDeltaTime() throws Exception {
 		String input = "Logger: #E509EC 'PT1000TEMP' - USP_EXP2 - (CGI) Expander for GP5W - (V2.7, Jan 12 2016)\n"
 				+"Delta Time: -122 secs\n"

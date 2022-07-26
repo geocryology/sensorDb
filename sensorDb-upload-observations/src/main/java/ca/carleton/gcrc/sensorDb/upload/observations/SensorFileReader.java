@@ -44,7 +44,7 @@ public class SensorFileReader {
 	final protected Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	static private Pattern patternFirstLine = Pattern.compile("^Logger:\\s*#([^']*)'.*$");
-	static private Pattern patternDeltaTimeLine = Pattern.compile("^Delta\\s+Time:\\s*(-?[0-9]+)\\s+secs\\s*$");
+	static private Pattern patternDeltaTimeLine = Pattern.compile("^Delta\\s+Time:\\s*(-?[0-9]+)\\s+secs[,\\s]*$");
 	static private Pattern patternIgnoreLine = Pattern.compile("^\\(.*\\)\\s*$");
 	static private Pattern patternTextNumber = Pattern.compile("^\\s*-?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\s*$");
 	static private Pattern patternIgnoreValue = Pattern.compile("^\\s*\\(.*\\)\\s*$");

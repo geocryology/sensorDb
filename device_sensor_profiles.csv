@@ -46,6 +46,11 @@ humidity logger,GeoPrecision,M-Log5W-US-HUMIDITY,#2:%RH,numeric,%RH,1.8,0.1,2
 humidity logger,GeoPrecision,M-Log5W-US-HUMIDITY,#HK-Bat:V,numeric,V,,,
 humidity logger,GeoPrecision,M-Log5W-US-HUMIDITY,#HK-Temp:oC,numeric,C,,,
 humidity logger,GeoPrecision,M-Log5W-US-HUMIDITY,notes,text,,,,
+humidity logger,GeoPrecision,TEMP_RELHU,#1:oC,numeric,C,0.3,0.05,2
+humidity logger,GeoPrecision,TEMP_RELHU,#2:rH,numeric,%RH,1.8,0.1,2
+humidity logger,GeoPrecision,TEMP_RELHU,#HK-Bat:V,numeric,V,,,
+humidity logger,GeoPrecision,TEMP_RELHU,notes,text,,,,
+humidity logger,GeoPrecision,TEMP_RELHU,#HK-Temp:oC,numeric,C,,,
 manual_observation,manual_observation,manual_observation,location_responsible_party,text,,,,
 manual_observation,manual_observation,manual_observation,location_to_do,text,,,,
 manual_observation,manual_observation,manual_observation,location_access,text,,,,

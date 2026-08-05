@@ -133,6 +133,8 @@ public class ConversionThread extends Thread {
 				logger.info("End file conversion "+ conversionRequest +" "+threadName);
 			} catch (Exception e) {
 				logger.error("Work error on thread "+threadName,e);
+			} catch (Throwable t) {
+				logger.error("Unexpected error on thread "+threadName+", thread will continue processing",t);
 			}
 		}
 	}

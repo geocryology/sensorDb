@@ -81,6 +81,8 @@ ALTER TABLE public.locations OWNER TO observations_admin;
 
 CREATE INDEX locations_name ON locations USING btree (name);
 
+CREATE INDEX locations_coordinates_gist ON locations USING GIST (coordinates);
+
 CREATE INDEX locations_coordinates ON locations USING btree (coordinates);
 
 CREATE TABLE public.devices_locations(
@@ -155,6 +157,8 @@ CREATE INDEX observations_corrected_utc_time ON observations USING btree (correc
 CREATE INDEX observations_unit_of_measure ON observations USING btree (unit_of_measure);
 
 CREATE INDEX observations_location ON observations USING btree (location);
+
+CREATE INDEX observations_sensor_id ON observations USING btree (sensor_id);
 
 ALTER TABLE public.observations OWNER TO observations_admin;
 

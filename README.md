@@ -41,6 +41,23 @@ The original version of sensorDb uses 2.2.9-SNAPSHOT as a dependency, but there 
 
 If you want to use the Nunaliit 2.2.9 binary, you can get it from https://github.com/GCRC/nunaliit/releases. Then install it according to the  [Nunaliit installation instructions ](https://github.com/GCRC/nunaliit/wiki/Installation).
 
+You may need to create a dummy mirror to `~/.m2/settings.xml` to override the http-blocker:
+```xml
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              http://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <mirrors>
+    <!-- Redirect legacy Restlet HTTP repository to its current HTTPS mirror -->
+    <mirror>
+      <id>restlet-https-override</id>
+      <mirrorOf>maven-restlet</mirrorOf>
+      <name>Restlet HTTPS Repository</name>
+      <url>https://maven.restlet.talend.com</url>
+    </mirror>
+  </mirrors>
+</settings>
+```
 
 ### Install SensorDb
 

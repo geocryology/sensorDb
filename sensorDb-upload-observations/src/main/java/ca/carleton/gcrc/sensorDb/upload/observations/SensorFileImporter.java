@@ -16,6 +16,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ca.carleton.gcrc.sensorDb.dbapi.BulkObservationInsertResult;
 import ca.carleton.gcrc.sensorDb.dbapi.DbAPI;
 import ca.carleton.gcrc.sensorDb.dbapi.Device;
 import ca.carleton.gcrc.sensorDb.dbapi.DeviceLocation;
@@ -32,6 +33,7 @@ import ca.carleton.gcrc.sensorDb.jdbc.DbConnection;
 public class SensorFileImporter {
 
 	final protected Logger logger = LoggerFactory.getLogger(this.getClass());
+	private static final int OBSERVATION_INSERT_CHUNK_SIZE = 1000;
 
 	//private DbConnection dbConn;
 	private DbAPI dbAPI;
@@ -204,20 +206,34 @@ public class SensorFileImporter {
 			DeviceSensorHistory deviceSensorHistory = new DeviceSensorHistory(deviceSensors, allSensors);
 
 			// Start saving observations
+			List<Observation> observationChunk = new Vector<Observation>();
 			for( Sample sample : samples ){
 				String sensor_label = sample.getColumn().getName();
 				
 				try {
-					insertSample(
+					ObservationAndLocation observationAndLocation = createObservation(
 						importUUID, 
 						device_id, 
 						deviceSensorHistory, 
 						sensor_label,
 						sample, 
 						timeCorrector, 
-						deviceLocator, 
-						report
+						deviceLocator
 					);
+					
+					if( observationAndLocation.isRecordingObservation() ){
+						observationChunk.add(observationAndLocation.getObservation());
+						
+						if( observationChunk.size() >= OBSERVATION_INSERT_CHUNK_SIZE ){
+							flushObservationChunk(observationChunk, report);
+						}
+						
+					} else {
+						Observation observation = observationAndLocation.getObservation();
+						report.inTransitObservation(observation);
+						report.skippedObservation(observation);
+					}
+					
 				} catch (Exception e) {
 					logger.error("Error on sample: "+sample);
 					logger.error("Sample found on line: "+sample.getLineNumber());
@@ -225,6 +241,8 @@ public class SensorFileImporter {
 					throw new Exception("Error inserting sample: "+sample,e);
 				}
 			}
+			
+			flushObservationChunk(observationChunk, report);
 
 		} catch (Exception e) {
 			
@@ -241,88 +259,14 @@ public class SensorFileImporter {
 		}
 	}
 
-	private void insertSample(
-			String importUUID,
-			String device_id,
-			Sensor sensor,
-			Sample sample, 
-			TimeCorrector timeCorrector,
-			DeviceLocator deviceLocator,
-			ImportReport report
-			) throws Exception {
-		
-		// insert into observations (device_id,sensor_id,location) values ('123','456',ST_GeomFromEWKT('srid=4326;POINT(0 0)'));
-		try {
-			Date loggerTime = sample.getTime();
-			Date correctedTime = timeCorrector.correctTime(loggerTime);
-			
-			Location location = deviceLocator.getLocationFromTimestamp(correctedTime);
-			if( null == location ){
-				throw new Exception("Can not find location of device (id="+device_id+") for time "+correctedTime.toString());
-			}
-			
-			String geometry = location.getGeometry();
-			
-			Observation observation = new Observation();
-			observation.setDeviceId( device_id );
-			observation.setSensorId( sensor.getId() );
-			observation.setImportId( importUUID );
-			observation.setImportKey( sample.computeImportKey() );
-			observation.setObservationType( sensor.getTypeOfMeasurement() );
-			observation.setUnitOfMeasure( sensor.getUnitOfMeasurement() );
-			observation.setAccuracy( sensor.getAccuracy() );
-			observation.setPrecision( sensor.getPrecision() );
-			observation.setNumericValue( sample.getValue() );
-			observation.setTextValue( sample.getText() );
-			observation.setLoggedTime( loggerTime );
-			observation.setCorrectedTime( correctedTime );
-			observation.setLocation( geometry );
-			observation.setElevation( location.getElevation() );
-			observation.setMinHeight( sensor.getHeightInMetres() );
-			observation.setMaxHeight( sensor.getHeightInMetres() );
-			
-			// Insert observation only if this location is meant to record observations.
-			// "In Transit" locations should not be saved.
-			if( location.isRecordingObservations() ){
-
-				boolean collision = false;
-				String importKey = observation.getImportKey();
-				Observation collidingObservation = null;
-				if( null != importKey ){
-					collidingObservation = dbAPI.getObservationFromImportKey(importKey);
-				}
-				if( null != collidingObservation ){
-					collision = true;
-				}
-				
-				if( collision ){
-					report.collisionObservation(observation);
-					report.skippedObservation(observation);
-				} else {
-					observation = dbAPI.createObservation(observation);
-					
-					report.insertedObservation(observation);
-				}
-
-			} else {
-				report.inTransitObservation(observation);
-				report.skippedObservation(observation);
-			};
-			
-		} catch (Exception e) {
-			throw new Exception("Error inserting observation for sensor (id="+sensor.getId()+") to database", e);
-		}
-	}
-
-	private void insertSample(
+	private ObservationAndLocation createObservation(
 		String importUUID,
 		String device_id,
 		DeviceSensorHistory deviceSensorHistory,
 		String sensor_label,
 		Sample sample, 
 		TimeCorrector timeCorrector,
-		DeviceLocator deviceLocator,
-		ImportReport report
+		DeviceLocator deviceLocator
 		) throws Exception {
 	
 	Sensor sensor = null;
@@ -362,34 +306,11 @@ public class SensorFileImporter {
 		observation.setMinHeight( sensor.getHeightInMetres() );
 		observation.setMaxHeight( sensor.getHeightInMetres() );
 		
-		// Insert observation only if this location is meant to record observations.
-		// "In Transit" locations should not be saved.
-		if( location.isRecordingObservations() ){
+		ObservationAndLocation observationAndLocation = new ObservationAndLocation();
+		observationAndLocation.setObservation(observation);
+		observationAndLocation.setRecordingObservation(location.isRecordingObservations());
+		return observationAndLocation;
 
-			boolean collision = false;
-			String importKey = observation.getImportKey();
-			Observation collidingObservation = null;
-			if( null != importKey ){
-				collidingObservation = dbAPI.getObservationFromImportKey(importKey);
-			}
-			if( null != collidingObservation ){
-				collision = true;
-			}
-			
-			if( collision ){
-				report.collisionObservation(observation);
-				report.skippedObservation(observation);
-			} else {
-				observation = dbAPI.createObservation(observation);
-				
-				report.insertedObservation(observation);
-			}
-
-		} else {
-			report.inTransitObservation(observation);
-			report.skippedObservation(observation);
-		};
-		
 	} catch (Exception e) {
 		if (null == sensor){
 			throw new Exception("Error inserting observation for sensor (label="+sensor_label+") to database", e);
@@ -399,6 +320,46 @@ public class SensorFileImporter {
 		
 	}
 }
+
+	private void flushObservationChunk(List<Observation> observationChunk, ImportReport report) throws Exception {
+		if( observationChunk.size() < 1 ){
+			return;
+		}
+		
+		BulkObservationInsertResult insertResult = dbAPI.createObservationsIfAbsent(observationChunk);
+		List<BulkObservationInsertResult.ItemResult> itemResults = insertResult.getItemResults();
+		for(BulkObservationInsertResult.ItemResult itemResult : itemResults){
+			Observation observation = itemResult.getObservation();
+			if( itemResult.isInserted() ){
+				report.insertedObservation(observation);
+			}
+			if( itemResult.isCollision() ){
+				report.collisionObservation(observation);
+				report.skippedObservation(observation);
+			}
+		}
+		
+		observationChunk.clear();
+	}
+
+	private static class ObservationAndLocation {
+		private Observation observation;
+		private boolean recordingObservation;
+		
+		public Observation getObservation() {
+			return observation;
+		}
+		public void setObservation(Observation observation) {
+			this.observation = observation;
+		}
+		
+		public boolean isRecordingObservation() {
+			return recordingObservation;
+		}
+		public void setRecordingObservation(boolean recordingObservation) {
+			this.recordingObservation = recordingObservation;
+		}
+	}
 
 	private void saveImportReport(ImportReport report) throws Exception {
 		try {

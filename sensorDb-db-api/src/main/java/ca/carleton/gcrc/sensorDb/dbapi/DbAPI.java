@@ -49,6 +49,8 @@ public interface DbAPI {
 
 	Observation createObservation(Observation observation) throws Exception;
 
+	BulkObservationInsertResult createObservationsIfAbsent(List<Observation> observations) throws Exception;
+
 	ObservationReader getObservationsFromImportId(String importId) throws Exception;
 
 	Observation getObservationFromImportKey(String importKey) throws Exception;

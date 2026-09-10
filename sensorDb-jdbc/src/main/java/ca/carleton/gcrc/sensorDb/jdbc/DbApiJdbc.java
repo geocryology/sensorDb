@@ -2,7 +2,10 @@ package ca.carleton.gcrc.sensorDb.jdbc;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Savepoint;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -16,6 +19,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ca.carleton.gcrc.sensorDb.dbapi.BulkObservationInsertResult;
 import ca.carleton.gcrc.sensorDb.dbapi.DbAPI;
 import ca.carleton.gcrc.sensorDb.dbapi.Device;
 import ca.carleton.gcrc.sensorDb.dbapi.DeviceLocation;
@@ -1069,6 +1073,127 @@ public class DbApiJdbc implements DbAPI {
 		}
 
 		return result;
+	}
+
+	@Override
+	public BulkObservationInsertResult createObservationsIfAbsent(List<Observation> observations) throws Exception {
+		BulkObservationInsertResult result = new BulkObservationInsertResult();
+		
+		if( null == observations ){
+			throw new Exception("Attempting to create a null list of observations");
+		}
+		if( observations.size() < 1 ){
+			return result;
+		}
+
+		boolean initialAutoCommit = dbConn.getConnection().getAutoCommit();
+		PreparedStatement pstmt = null;
+		try {
+			dbConn.getConnection().setAutoCommit(false);
+			
+			pstmt = dbConn.getConnection().prepareStatement(
+				"INSERT INTO observations"
+				+" (device_id,sensor_id,import_id,import_key,observation_type,"
+				+" unit_of_measure,accuracy,precision,numeric_value,text_value,"
+				+" logged_time,corrected_utc_time,location,height_min_metres,"
+				+" height_max_metres,elevation_in_metres)"
+				+" VALUES (?,?,?,?,?,?,?,?,?,?,?,?,ST_GeomFromEWKT(?),?,?,?)"
+			);
+			
+			for(Observation observation : observations){
+				Savepoint savepoint = dbConn.getConnection().setSavepoint();
+				
+				try {
+					pstmt.setObject(1, UUID.fromString(observation.getDeviceId()));
+					pstmt.setObject(2, UUID.fromString(observation.getSensorId()));
+					pstmt.setObject(3, UUID.fromString(observation.getImportId()));
+					pstmt.setString(4, observation.getImportKey());
+					pstmt.setString(5, observation.getObservationType());
+					pstmt.setString(6, observation.getUnitOfMeasure());
+					setNullableDouble(pstmt, 7, observation.getAccuracy());
+					setNullableDouble(pstmt, 8, observation.getPrecision());
+					setNullableDouble(pstmt, 9, observation.getNumericValue());
+					pstmt.setString(10, observation.getTextValue());
+					pstmt.setTimestamp(11, new Timestamp(observation.getLoggedTime().getTime()));
+					pstmt.setTimestamp(12, new Timestamp(observation.getCorrectedTime().getTime()));
+					pstmt.setString(13, observation.getLocation());
+					setNullableDouble(pstmt, 14, observation.getMinHeight());
+					setNullableDouble(pstmt, 15, observation.getMaxHeight());
+					setNullableDouble(pstmt, 16, observation.getElevation());
+
+					pstmt.executeUpdate();
+					result.addItemResult(observation, true, false);
+					
+				} catch(SQLException sqlEx) {
+					if( isDuplicateKeyViolation(sqlEx) ){
+						dbConn.getConnection().rollback(savepoint);
+						result.addItemResult(observation, false, true);
+					} else {
+						throw sqlEx;
+					}
+				}
+			}
+			
+			dbConn.getConnection().commit();
+			
+		} catch (Exception e) {
+			try {
+				dbConn.getConnection().rollback();
+			} catch(Exception e2) {
+				logger.error("Error rolling back observation bulk insert", e2);
+			}
+			
+			throw new Exception("Error inserting observations into database", e);
+			
+		} finally {
+			if( null != pstmt ){
+				try {
+					pstmt.close();
+				} catch(Exception e) {
+					// Ignore
+				}
+			}
+			
+			try {
+				dbConn.getConnection().setAutoCommit(initialAutoCommit);
+			} catch(Exception e) {
+				// Ignore
+			}
+		}
+
+		return result;
+	}
+
+	private boolean isDuplicateKeyViolation(SQLException sqlEx) {
+		SQLException current = sqlEx;
+		while( null != current ){
+			String sqlState = current.getSQLState();
+			if( "23505".equals(sqlState) ){
+				return true;
+			}
+			current = current.getNextException();
+		}
+		
+		Throwable cause = sqlEx.getCause();
+		while( null != cause ){
+			if( cause instanceof SQLException ){
+				SQLException causeSqlEx = (SQLException)cause;
+				if( "23505".equals(causeSqlEx.getSQLState()) ){
+					return true;
+				}
+			}
+			cause = cause.getCause();
+		}
+		
+		return false;
+	}
+	
+	private void setNullableDouble(PreparedStatement pstmt, int index, Double value) throws Exception {
+		if( null == value ){
+			pstmt.setNull(index, Types.NUMERIC);
+		} else {
+			pstmt.setDouble(index, value.doubleValue());
+		}
 	}
 
 	@Override

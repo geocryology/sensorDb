@@ -150,7 +150,7 @@ CREATE TABLE public.observations (
     height_max_metres numeric
 );
 
-CREATE INDEX observations_import_key ON observations USING btree (import_key);
+CREATE UNIQUE INDEX observations_import_key ON observations USING btree (import_key);
 
 CREATE INDEX observations_corrected_utc_time ON observations USING btree (corrected_utc_time);
 
@@ -260,4 +260,3 @@ GRANT SELECT, INSERT, UPDATE, DELETE on imports to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on observations to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on observations_sets to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on sensors to observations_write;
-

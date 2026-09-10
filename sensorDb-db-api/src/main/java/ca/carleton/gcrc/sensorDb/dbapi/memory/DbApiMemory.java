@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
+import ca.carleton.gcrc.sensorDb.dbapi.BulkObservationInsertResult;
 import ca.carleton.gcrc.sensorDb.dbapi.DbAPI;
 import ca.carleton.gcrc.sensorDb.dbapi.Device;
 import ca.carleton.gcrc.sensorDb.dbapi.DeviceLocation;
@@ -328,6 +329,35 @@ public class DbApiMemory implements DbAPI {
 		observationsById.put(dbObservation.getId(), dbObservation);
 		
 		return dbObservation;
+	}
+
+	@Override
+	public BulkObservationInsertResult createObservationsIfAbsent(List<Observation> observations) throws Exception {
+		BulkObservationInsertResult result = new BulkObservationInsertResult();
+		
+		if( null == observations ){
+			throw new Exception("Attempting to create a null list of observations");
+		}
+		
+		for(Observation observation : observations){
+			boolean collision = false;
+			String importKey = observation.getImportKey();
+			if( null != importKey ){
+				Observation collidingObservation = getObservationFromImportKey(importKey);
+				if( null != collidingObservation ){
+					collision = true;
+				}
+			}
+			
+			if( collision ){
+				result.addItemResult(observation, false, true);
+			} else {
+				Observation insertedObservation = createObservation(observation);
+				result.addItemResult(insertedObservation, true, false);
+			}
+		}
+		
+		return result;
 	}
 
 	@Override

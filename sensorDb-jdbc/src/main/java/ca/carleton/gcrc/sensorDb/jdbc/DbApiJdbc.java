@@ -1,21 +1,33 @@
 package ca.carleton.gcrc.sensorDb.jdbc;
 
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.Vector;
 
+import org.postgresql.PGConnection;
+import org.postgresql.copy.PGCopyOutputStream;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ca.carleton.gcrc.sensorDb.dbapi.BulkObservationInsertResult;
 import ca.carleton.gcrc.sensorDb.dbapi.DbAPI;
 import ca.carleton.gcrc.sensorDb.dbapi.Device;
 import ca.carleton.gcrc.sensorDb.dbapi.DeviceLocation;
@@ -1069,6 +1081,263 @@ public class DbApiJdbc implements DbAPI {
 		}
 
 		return result;
+	}
+
+	@Override
+	public BulkObservationInsertResult createObservationsIfAbsent(List<Observation> observations) throws Exception {
+		BulkObservationInsertResult result = new BulkObservationInsertResult();
+		
+		if( null == observations ){
+			throw new Exception("Attempting to create a null list of observations");
+		}
+		if( observations.size() < 1 ){
+			return result;
+		}
+
+		Connection connection = dbConn.getConnection();
+		boolean initialAutoCommit = connection.getAutoCommit();
+		UUID importId = UUID.fromString(observations.get(0).getImportId());
+		try {
+			connection.setAutoCommit(false);
+			deleteStagingObservations(connection, importId);
+			copyObservationsToStaging(connection, observations);
+			classifyBulkObservationResults(result, observations, moveObservationsFromStaging(connection, importId));
+			deleteStagingObservations(connection, importId);
+			connection.commit();
+			
+		} catch (Exception e) {
+			try {
+				connection.rollback();
+			} catch(Exception e2) {
+				logger.error("Error rolling back observation bulk insert", e2);
+			}
+
+			try {
+				deleteStagingObservations(connection, importId);
+				connection.commit();
+			} catch(Exception e2) {
+				logger.error("Error cleaning staging observations for import id: "+importId, e2);
+				try {
+					connection.rollback();
+				} catch(Exception e3) {
+					logger.error("Error rolling back staging cleanup for import id: "+importId, e3);
+				}
+			}
+			
+			throw new Exception("Error inserting observations into database", e);
+			
+		} finally {
+			try {
+				connection.setAutoCommit(initialAutoCommit);
+			} catch(Exception e) {
+				// Ignore
+			}
+		}
+
+		return result;
+	}
+
+	private void deleteStagingObservations(Connection connection, UUID importId) throws Exception {
+		PreparedStatement pstmt = null;
+		try {
+			pstmt = connection.prepareStatement(
+				"DELETE FROM observations_staging WHERE import_id=?"
+			);
+			pstmt.setObject(1, importId);
+			pstmt.executeUpdate();
+		} finally {
+			if( null != pstmt ){
+				try {
+					pstmt.close();
+				} catch(Exception e) {
+					// Ignore
+				}
+			}
+		}
+	}
+
+	private List<String> moveObservationsFromStaging(Connection connection, UUID importId) throws Exception {
+		List<String> insertedImportKeys = new Vector<String>();
+		PreparedStatement pstmt = null;
+		ResultSet resultSet = null;
+		try {
+			pstmt = connection.prepareStatement(
+				"INSERT INTO observations"
+				+" (device_id,sensor_id,import_id,import_key,observation_type,"
+				+" unit_of_measure,accuracy,precision,numeric_value,text_value,"
+				+" logged_time,corrected_utc_time,location,height_min_metres,"
+				+" height_max_metres,elevation_in_metres)"
+				+" SELECT device_id,sensor_id,import_id,import_key,observation_type,"
+				+" unit_of_measure,accuracy,precision,numeric_value,text_value,"
+				+" logged_time,corrected_utc_time,ST_GeomFromEWKT(location),"
+				+" height_min_metres,height_max_metres,elevation_in_metres"
+				+" FROM observations_staging"
+				+" WHERE import_id=?"
+				+" ON CONFLICT (import_key) DO NOTHING"
+				+" RETURNING import_key"
+			);
+			pstmt.setObject(1, importId);
+			resultSet = pstmt.executeQuery();
+			while( resultSet.next() ){
+				insertedImportKeys.add( resultSet.getString(1) );
+			}
+		} finally {
+			if( null != resultSet ){
+				try {
+					resultSet.close();
+				} catch(Exception e) {
+					// Ignore
+				}
+			}
+			if( null != pstmt ){
+				try {
+					pstmt.close();
+				} catch(Exception e) {
+					// Ignore
+				}
+			}
+		}
+		return insertedImportKeys;
+	}
+
+	private void classifyBulkObservationResults(BulkObservationInsertResult result, List<Observation> observations, List<String> insertedImportKeys) {
+		Map<String,Integer> insertedImportKeyCounts = new HashMap<String,Integer>();
+		for(String insertedImportKey : insertedImportKeys){
+			Integer count = insertedImportKeyCounts.get(insertedImportKey);
+			if( null == count ){
+				count = Integer.valueOf(0);
+			}
+			insertedImportKeyCounts.put(insertedImportKey, Integer.valueOf(count.intValue()+1));
+		}
+		
+		for(Observation observation : observations){
+			String importKey = observation.getImportKey();
+			Integer count = insertedImportKeyCounts.get(importKey);
+			if( null != count && count.intValue() > 0 ){
+				insertedImportKeyCounts.put(importKey, Integer.valueOf(count.intValue()-1));
+				result.addItemResult(observation, true, false);
+			} else {
+				result.addItemResult(observation, false, true);
+			}
+		}
+	}
+
+	private void copyObservationsToStaging(Connection connection, List<Observation> observations) throws Exception {
+		PGConnection pgConnection = connection.unwrap(PGConnection.class);
+		PGCopyOutputStream copyOutputStream = null;
+		Writer writer = null;
+		SimpleDateFormat dateFormatter = createCopyDateFormatter();
+		try {
+			copyOutputStream = new PGCopyOutputStream(
+				pgConnection,
+				"COPY observations_staging "
+				+"(import_id,device_id,sensor_id,import_key,observation_type,unit_of_measure,"
+				+"accuracy,precision,numeric_value,text_value,logged_time,corrected_utc_time,"
+				+"location,elevation_in_metres,height_min_metres,height_max_metres)"
+				+" FROM STDIN"
+			);
+			writer = new OutputStreamWriter(copyOutputStream, "UTF-8");
+			for(Observation observation : observations){
+				writeObservationToCopy(writer, observation, dateFormatter);
+			}
+			writer.flush();
+		} finally {
+			if( null != writer ){
+				writer.close();
+			} else if( null != copyOutputStream ){
+				copyOutputStream.close();
+			}
+		}
+	}
+
+	private void writeObservationToCopy(Writer writer, Observation observation, SimpleDateFormat dateFormatter) throws Exception {
+		writeCopyField(writer, observation.getImportId());
+		writer.write('\t');
+		writeCopyField(writer, observation.getDeviceId());
+		writer.write('\t');
+		writeCopyField(writer, observation.getSensorId());
+		writer.write('\t');
+		writeCopyField(writer, observation.getImportKey());
+		writer.write('\t');
+		writeCopyField(writer, observation.getObservationType());
+		writer.write('\t');
+		writeCopyField(writer, observation.getUnitOfMeasure());
+		writer.write('\t');
+		writeCopyField(writer, observation.getAccuracy());
+		writer.write('\t');
+		writeCopyField(writer, observation.getPrecision());
+		writer.write('\t');
+		writeCopyField(writer, observation.getNumericValue());
+		writer.write('\t');
+		writeCopyField(writer, observation.getTextValue());
+		writer.write('\t');
+		writeCopyField(writer, observation.getLoggedTime(), dateFormatter);
+		writer.write('\t');
+		writeCopyField(writer, observation.getCorrectedTime(), dateFormatter);
+		writer.write('\t');
+		writeCopyField(writer, observation.getLocation());
+		writer.write('\t');
+		writeCopyField(writer, observation.getElevation());
+		writer.write('\t');
+		writeCopyField(writer, observation.getMinHeight());
+		writer.write('\t');
+		writeCopyField(writer, observation.getMaxHeight());
+		writer.write('\n');
+	}
+
+	private void writeCopyField(Writer writer, String value) throws Exception {
+		if( null == value ){
+			writer.write("\\N");
+		} else {
+			writer.write(escapeCopyValue(value));
+		}
+	}
+
+	private void writeCopyField(Writer writer, Double value) throws Exception {
+		if( null == value ){
+			writer.write("\\N");
+		} else {
+			writer.write(value.toString());
+		}
+	}
+
+	private void writeCopyField(Writer writer, Date value, SimpleDateFormat dateFormatter) throws Exception {
+		if( null == value ){
+			writer.write("\\N");
+		} else {
+			writer.write(dateFormatter.format(value));
+		}
+	}
+
+	private String escapeCopyValue(String value) {
+		StringBuilder sb = new StringBuilder();
+		for(int loop=0; loop<value.length(); ++loop){
+			char c = value.charAt(loop);
+			switch(c){
+			case '\\':
+				sb.append("\\\\");
+				break;
+			case '\t':
+				sb.append("\\t");
+				break;
+			case '\n':
+				sb.append("\\n");
+				break;
+			case '\r':
+				sb.append("\\r");
+				break;
+			default:
+				sb.append(c);
+				break;
+			}
+		}
+		return sb.toString();
+	}
+
+	private SimpleDateFormat createCopyDateFormatter() {
+		SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ");
+		formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
+		return formatter;
 	}
 
 	@Override

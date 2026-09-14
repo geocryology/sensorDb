@@ -6,6 +6,8 @@ public interface ImportReport {
 	
 	void setImportId(String importId);
 
+	void setExpectedObservationCount(int expectedObservationCount);
+
 	void insertedObservation(Observation observation);
 
 	void skippedObservation(Observation observation);

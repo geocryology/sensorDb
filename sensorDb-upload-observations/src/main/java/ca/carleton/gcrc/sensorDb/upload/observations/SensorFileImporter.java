@@ -181,6 +181,11 @@ public class SensorFileImporter {
 				}
 			}
 			
+			// Record the number of observations expected to be processed so that
+			// any observations that go missing (neither inserted nor skipped) can
+			// be detected, rather than silently dropped.
+			report.setExpectedObservationCount(samples.size());
+			
 			// Compute a time corrector
 			TimeCorrector timeCorrector = new TimeCorrector();
 			timeCorrector.setStartTime(firstTime);
@@ -364,6 +369,16 @@ public class SensorFileImporter {
 	private void saveImportReport(ImportReport report) throws Exception {
 		try {
 			JSONObject jsonLog = report.produceReport();
+			
+			int lostCount = jsonLog.optInt("lostCount", 0);
+			if( lostCount != 0 ){
+				logger.error(
+					"Import "+jsonLog.optString("importId")+" lost "+lostCount
+					+" observation(s): expected "+jsonLog.optInt("expectedCount")
+					+" but only accounted for "+jsonLog.optInt("accountedCount")
+					+" (inserted+skipped)"
+				);
+			}
 			
 			LogRecord logRecord = new LogRecord();
 			logRecord.setTimestamp( new Date() ); // now

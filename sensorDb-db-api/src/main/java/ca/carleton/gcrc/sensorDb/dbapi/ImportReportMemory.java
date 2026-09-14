@@ -11,6 +11,7 @@ import org.json.JSONObject;
 public class ImportReportMemory implements ImportReport {
 
 	private String importId;
+	private int expectedObservationCount = 0;
 	private int insertedObservations = 0;
 	private int skippedObservations = 0;
 	private int inTransitObservations = 0;
@@ -31,6 +32,11 @@ public class ImportReportMemory implements ImportReport {
 	@Override
 	public void setImportId(String importId){
 		this.importId = importId;
+	}
+
+	@Override
+	public void setExpectedObservationCount(int expectedObservationCount) {
+		this.expectedObservationCount = expectedObservationCount;
 	}
 
 	@Override
@@ -76,10 +82,16 @@ public class ImportReportMemory implements ImportReport {
 		
 		jsonReport.put("type", "import");
 		jsonReport.put("importId", importId);
+		jsonReport.put("expectedCount", expectedObservationCount);
 		jsonReport.put("insertedCount", insertedObservations);
 		jsonReport.put("skippedCount", skippedObservations);
 		jsonReport.put("inTransitCount", inTransitObservations);
 		jsonReport.put("collisionCount", collisionObservations);
+
+		int accountedCount = insertedObservations + skippedObservations;
+		int lostCount = expectedObservationCount - accountedCount;
+		jsonReport.put("accountedCount", accountedCount);
+		jsonReport.put("lostCount", lostCount);
 		
 		JSONObject jsonProblems = new JSONObject();
 		int problemCount = 0;
@@ -115,6 +127,14 @@ public class ImportReportMemory implements ImportReport {
 	
 	public int getCollisionObservationCount() {
 		return collisionObservations;
+	}
+
+	public int getExpectedObservationCount() {
+		return expectedObservationCount;
+	}
+
+	public int getLostObservationCount() {
+		return expectedObservationCount - (insertedObservations + skippedObservations);
 	}
 	
 	private JSONObject errorToJSON(Throwable t){

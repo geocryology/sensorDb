@@ -124,6 +124,8 @@ public class SensorFileImporterTest extends TestCase {
 		assertEquals(0, firstReport.getInt("skippedCount"));
 		assertEquals(0, firstReport.getInt("collisionCount"));
 		assertEquals(0, firstReport.getInt("inTransitCount"));
+		assertEquals(firstInsertedCount, firstReport.getInt("expectedCount"));
+		assertEquals(0, firstReport.getInt("lostCount"));
 		
 		ImportRecord secondImportRecord = importer.importFile(conversionRequest);
 		int secondInsertedCount = countObservationsForImport(dbApi, secondImportRecord.getId());
@@ -134,6 +136,8 @@ public class SensorFileImporterTest extends TestCase {
 		assertEquals(firstInsertedCount, secondReport.getInt("skippedCount"));
 		assertEquals(firstInsertedCount, secondReport.getInt("collisionCount"));
 		assertEquals(0, secondReport.getInt("inTransitCount"));
+		assertEquals(firstInsertedCount, secondReport.getInt("expectedCount"));
+		assertEquals(0, secondReport.getInt("lostCount"));
 	}
 	
 	public void testInTransitObservationsRemainSkipped() throws Exception {
@@ -152,6 +156,8 @@ public class SensorFileImporterTest extends TestCase {
 		assertEquals(0, report.getInt("collisionCount"));
 		assertTrue(report.getInt("inTransitCount") > 0);
 		assertEquals(report.getInt("inTransitCount"), report.getInt("skippedCount"));
+		assertEquals(report.getInt("skippedCount"), report.getInt("expectedCount"));
+		assertEquals(0, report.getInt("lostCount"));
 	}
 	
 	private ConversionRequest createConversionRequest(File testFile) {

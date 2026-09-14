@@ -150,7 +150,7 @@ CREATE TABLE public.observations (
     height_max_metres numeric
 );
 
-CREATE INDEX observations_import_key ON observations USING btree (import_key);
+CREATE UNIQUE INDEX observations_import_key ON observations USING btree (import_key);
 
 CREATE INDEX observations_corrected_utc_time ON observations USING btree (corrected_utc_time);
 
@@ -178,6 +178,43 @@ GRANT SELECT ON TABLE public.observations TO observations_read;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.observations TO observations_write;
 
 --- end of observations table
+
+--- Unlogged staging table for high-throughput bulk observation imports.
+--- Rows are scoped by import_id so multiple concurrent or crashed imports
+--- cannot interfere with each other: an import always deletes any of its
+--- own leftover rows before loading, and again after moving rows into
+--- public.observations, so orphaned rows are only ever tagged with their
+--- own import_id and never collide with a different import.
+
+CREATE UNLOGGED TABLE public.observations_staging (
+    import_id uuid NOT NULL,
+    device_id uuid,
+    sensor_id uuid,
+    import_key text,
+    observation_type varchar,
+    unit_of_measure varchar,
+    accuracy numeric,
+    "precision" numeric,
+    numeric_value numeric,
+    text_value text,
+    logged_time timestamp with time zone,
+    corrected_utc_time timestamp with time zone,
+    location text,
+    elevation_in_metres numeric,
+    height_min_metres numeric,
+    height_max_metres numeric
+);
+
+CREATE INDEX observations_staging_import_id ON observations_staging USING btree (import_id);
+
+ALTER TABLE public.observations_staging OWNER TO observations_admin;
+
+REVOKE ALL ON TABLE public.observations_staging FROM PUBLIC;
+REVOKE ALL ON TABLE public.observations_staging FROM observations_admin;
+GRANT ALL ON TABLE public.observations_staging TO observations_admin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.observations_staging TO observations_write;
+
+--- end of observations_staging table
 
 CREATE TABLE public.sets(
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -260,4 +297,3 @@ GRANT SELECT, INSERT, UPDATE, DELETE on imports to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on observations to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on observations_sets to observations_write;
 GRANT SELECT, INSERT, UPDATE, DELETE on sensors to observations_write;
-

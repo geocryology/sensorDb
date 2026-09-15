@@ -63,7 +63,7 @@ You may need to create a dummy mirror to `~/.m2/settings.xml` to override the ht
 
 ```bash
 MAINDIR=/opt/
-SDB_VER=0.0.1-SNAPSHOT
+SDB_VER=1.0.0-SNAPSHOT
 
 # Download and build sensordb
 cd $MAINDIR

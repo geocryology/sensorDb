@@ -72,6 +72,22 @@ public class ServerProperties {
 				serverProps.setDbPassword(dbPassword);
 			}
 		}
+
+		// DB Socket Timeout
+		{
+			String dbSocketTimeout = props.getProperty("db.socketTimeout",null);
+			if( null != dbSocketTimeout ){
+				try {
+					int socketTimeoutSeconds = Integer.parseInt(dbSocketTimeout);
+					if( socketTimeoutSeconds < 0 ){
+						throw new Exception("Invalid db socket timeout: "+dbSocketTimeout);
+					}
+					serverProps.setDbSocketTimeoutSeconds(Integer.valueOf(socketTimeoutSeconds));
+				} catch(Exception e) {
+					throw new Exception("Unable to interpret db socket timeout", e);
+				}
+			}
+		}
 		
 		return serverProps;
 	}
@@ -257,6 +273,7 @@ public class ServerProperties {
 	private String dbConnection = null;
 	private String dbUser = null;
 	private String dbPassword = null;
+	private Integer dbSocketTimeoutSeconds = null;
 
 	public int getServerPort() {
 		return serverPort;
@@ -291,5 +308,12 @@ public class ServerProperties {
 	}
 	public void setDbUser(String dbUser) {
 		this.dbUser = dbUser;
+	}
+
+	public Integer getDbSocketTimeoutSeconds() {
+		return dbSocketTimeoutSeconds;
+	}
+	public void setDbSocketTimeoutSeconds(Integer dbSocketTimeoutSeconds) {
+		this.dbSocketTimeoutSeconds = dbSocketTimeoutSeconds;
 	}
 }

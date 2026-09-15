@@ -110,8 +110,13 @@ public class CommandRun implements Command {
 		String connectionString = serverProperties.getDbConnection();
 		String dbUser = serverProperties.getDbUser();
 		String dbPassword = serverProperties.getDbPassword();
-		DbConnection dbConnection = 
-				DbConnection.fromParameters(connectionString, dbUser, dbPassword);
+		Integer dbSocketTimeoutSeconds = serverProperties.getDbSocketTimeoutSeconds();
+		DbConnection dbConnection = null;
+		if( null != dbSocketTimeoutSeconds ){
+			dbConnection = DbConnection.fromParameters(connectionString, dbUser, dbPassword, dbSocketTimeoutSeconds.intValue());
+		} else {
+			dbConnection = DbConnection.fromParameters(connectionString, dbUser, dbPassword);
+		}
 		
 		// Figure out media directory
 		File mediaDir = new File(serverDir, "media");

@@ -1095,6 +1095,9 @@ public class DbApiJdbc implements DbAPI {
 		}
 
 		Connection connection = dbConn.getConnection();
+		if( null == connection ){
+			throw new Exception("Could not obtain a database connection for bulk observation insert");
+		}
 		boolean initialAutoCommit = connection.getAutoCommit();
 		UUID importId = UUID.fromString(observations.get(0).getImportId());
 		try {
@@ -1106,38 +1109,94 @@ public class DbApiJdbc implements DbAPI {
 			connection.commit();
 			
 		} catch (Exception e) {
-			try {
-				connection.rollback();
-			} catch(Exception e2) {
-				logger.error("Error rolling back observation bulk insert", e2);
-			}
+			cleanupFailedBulkObservationInsert(connection, importId);
 
-			try {
-				deleteStagingObservations(connection, importId);
-				connection.commit();
-			} catch(Exception e2) {
-				logger.error("Error cleaning staging observations for import id: "+importId, e2);
-				try {
-					connection.rollback();
-				} catch(Exception e3) {
-					logger.error("Error rolling back staging cleanup for import id: "+importId, e3);
-				}
-			}
-			
 			throw new Exception("Error inserting observations into database", e);
-			
+
 		} finally {
-			try {
-				connection.setAutoCommit(initialAutoCommit);
-			} catch(Exception e) {
-				// Ignore
-			}
+			restoreAutoCommit(connection, initialAutoCommit);
 		}
 
 		return result;
 	}
 
-	private void deleteStagingObservations(Connection connection, UUID importId) throws Exception {
+	protected void cleanupFailedBulkObservationInsert(Connection connection, UUID importId) {
+		Connection cleanupConnection = connection;
+
+		if( isConnectionUsable(connection) ){
+			try {
+				connection.rollback();
+			} catch(Exception e) {
+				logger.error("Error rolling back observation bulk insert", e);
+			}
+		} else {
+			logger.warn("Observation bulk insert connection is unusable after failure; reopening connection before staging cleanup for import id: "+importId);
+		}
+
+		if( !isConnectionUsable(cleanupConnection) ){
+			try {
+				cleanupConnection = dbConn.getConnection();
+			} catch(Exception e) {
+				logger.error("Error obtaining connection for staging cleanup for import id: "+importId, e);
+				return;
+			}
+			if( !isConnectionUsable(cleanupConnection) ){
+				logger.error("Unable to obtain a valid connection for staging cleanup for import id: "+importId);
+				return;
+			}
+		}
+
+		boolean initialAutoCommit = true;
+		try {
+			initialAutoCommit = cleanupConnection.getAutoCommit();
+			if( initialAutoCommit ){
+				cleanupConnection.setAutoCommit(false);
+			}
+			deleteStagingObservations(cleanupConnection, importId);
+			cleanupConnection.commit();
+		} catch(Exception e) {
+			logger.error("Error cleaning staging observations for import id: "+importId, e);
+			if( isConnectionUsable(cleanupConnection) ){
+				try {
+					cleanupConnection.rollback();
+				} catch(Exception e2) {
+					logger.error("Error rolling back staging cleanup for import id: "+importId, e2);
+				}
+			} else {
+				logger.warn("Skipping rollback for staging cleanup because connection is unusable for import id: "+importId);
+			}
+		} finally {
+			if( cleanupConnection != connection ){
+				restoreAutoCommit(cleanupConnection, initialAutoCommit);
+			}
+		}
+	}
+
+	protected boolean isConnectionUsable(Connection connection) {
+		if( null == connection ){
+			return false;
+		}
+		try {
+			if( connection.isClosed() ){
+				return false;
+			}
+			return connection.isValid(2);
+		} catch(SQLException e) {
+			return false;
+		}
+	}
+
+	protected void restoreAutoCommit(Connection connection, boolean autoCommit) {
+		if( null != connection ){
+			try {
+				connection.setAutoCommit(autoCommit);
+			} catch(Exception e) {
+				// Ignore
+			}
+		}
+	}
+
+	protected void deleteStagingObservations(Connection connection, UUID importId) throws Exception {
 		PreparedStatement pstmt = null;
 		try {
 			pstmt = connection.prepareStatement(
@@ -1156,7 +1215,7 @@ public class DbApiJdbc implements DbAPI {
 		}
 	}
 
-	private List<String> moveObservationsFromStaging(Connection connection, UUID importId) throws Exception {
+	protected List<String> moveObservationsFromStaging(Connection connection, UUID importId) throws Exception {
 		List<String> insertedImportKeys = new Vector<String>();
 		PreparedStatement pstmt = null;
 		ResultSet resultSet = null;
@@ -1222,7 +1281,7 @@ public class DbApiJdbc implements DbAPI {
 		}
 	}
 
-	private void copyObservationsToStaging(Connection connection, List<Observation> observations) throws Exception {
+	protected void copyObservationsToStaging(Connection connection, List<Observation> observations) throws Exception {
 		PGConnection pgConnection = connection.unwrap(PGConnection.class);
 		PGCopyOutputStream copyOutputStream = null;
 		Writer writer = null;

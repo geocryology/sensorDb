@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.SQLException; 
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,9 +14,14 @@ import ca.carleton.gcrc.sensorDb.dbapi.DbAPI;
 public class DbConnection {
 
 	final static protected Logger logger = LoggerFactory.getLogger(DbConnection.class);
+	static final String SOCKET_TIMEOUT_SECONDS_SYSTEM_PROPERTY = "sensorDb.jdbc.socketTimeoutSeconds";
+	static final String SOCKET_TIMEOUT_SECONDS_ENVIRONMENT_VARIABLE = "SENSORDB_JDBC_SOCKET_TIMEOUT_SECONDS";
+	static final int DEFAULT_SOCKET_TIMEOUT_SECONDS = 300;
+
 	private final String connectionString;
 	private final String user;
 	private final String password;
+	private final int socketTimeoutSeconds;
 	
 	private Connection connection;
 
@@ -24,16 +30,26 @@ public class DbConnection {
 			String user,
 			String password
 			) throws Exception {
-		
-		Connection con = createNewSqlConnection(connectionString, user, password);
-		return new DbConnection(con, connectionString, user, password);
+		return fromParameters(connectionString, user, password, resolveSocketTimeoutSeconds());
 	}
 
-	private DbConnection(Connection connection, String connectionString, String user, String password) {
+	static public DbConnection fromParameters(
+			String connectionString,
+			String user,
+			String password,
+			int socketTimeoutSeconds
+			) throws Exception {
+		
+		Connection con = createNewSqlConnection(connectionString, user, password, socketTimeoutSeconds);
+		return new DbConnection(con, connectionString, user, password, socketTimeoutSeconds);
+	}
+
+	protected DbConnection(Connection connection, String connectionString, String user, String password, int socketTimeoutSeconds) {
 		this.connection = connection;
 		this.connectionString = connectionString;
 		this.user = user;
 		this.password = password;
+		this.socketTimeoutSeconds = socketTimeoutSeconds;
 	}
         public synchronized Connection getConnection() {
             final int MAX_RETRIES = 8;  // Increased from 5
@@ -47,7 +63,7 @@ public class DbConnection {
                     // Check if the connection is dead, using a 2-second timeout.
                     if (this.connection == null || !this.connection.isValid(2)) {
                         logger.warn("Database connection was stale or closed. Reconnecting...");
-                        this.connection = createNewSqlConnection(this.connectionString, this.user, this.password);
+                        this.connection = createNewSqlConnection(this.connectionString, this.user, this.password, this.socketTimeoutSeconds);
                     }
                     return this.connection; // Success - return the connection
                     
@@ -57,7 +73,7 @@ public class DbConnection {
                     
                     // If isValid() throws an error, the connection is definitely dead.
                     try {
-                        this.connection = createNewSqlConnection(this.connectionString, this.user, this.password);
+                        this.connection = createNewSqlConnection(this.connectionString, this.user, this.password, this.socketTimeoutSeconds);
                         return this.connection; // Success after reconnect
                     } catch (Exception newConnectException) { 
                         logger.error("Failed to reconnect to the database (attempt " + attempt + " of " + MAX_RETRIES + ")", newConnectException);
@@ -87,13 +103,44 @@ public class DbConnection {
             return null;
         }
 
-	private static Connection createNewSqlConnection(String connectionString, String user, String password) throws Exception {
+	static int resolveSocketTimeoutSeconds() {
+		String configuredValue = System.getProperty(SOCKET_TIMEOUT_SECONDS_SYSTEM_PROPERTY);
+		if( null == configuredValue || configuredValue.trim().length() < 1 ){
+			configuredValue = System.getenv(SOCKET_TIMEOUT_SECONDS_ENVIRONMENT_VARIABLE);
+		}
+		if( null != configuredValue && configuredValue.trim().length() > 0 ){
+			try {
+				int socketTimeoutSeconds = Integer.parseInt(configuredValue.trim());
+				if( socketTimeoutSeconds >= 0 ){
+					return socketTimeoutSeconds;
+				}
+				logger.warn("Ignoring negative JDBC socket timeout value: "+configuredValue);
+			} catch(Exception e) {
+				logger.warn("Ignoring invalid JDBC socket timeout value: "+configuredValue, e);
+			}
+		}
+		return DEFAULT_SOCKET_TIMEOUT_SECONDS;
+	}
+
+	static Properties createConnectionProperties(String user, String password, int socketTimeoutSeconds) {
+		Properties properties = new Properties();
+		if( null != user ){
+			properties.setProperty("user", user);
+		}
+		if( null != password ){
+			properties.setProperty("password", password);
+		}
+		properties.setProperty("socketTimeout", String.valueOf(socketTimeoutSeconds));
+		return properties;
+	}
+
+	private static Connection createNewSqlConnection(String connectionString, String user, String password, int socketTimeoutSeconds) throws Exception {
 		try {
 		    Class.forName("org.postgresql.Driver"); //load the driver
+		    Properties connectionProperties = createConnectionProperties(user, password, socketTimeoutSeconds);
 			Connection con = DriverManager.getConnection(
 					"jdbc:postgresql:"+connectionString,
-					user,
-					password
+					connectionProperties
 				); //connect to the db
 		    DatabaseMetaData dbmd = con.getMetaData(); //get MetaData to confirm connection
 		    logger.info("Connection to "+dbmd.getDatabaseProductName()+" "+
